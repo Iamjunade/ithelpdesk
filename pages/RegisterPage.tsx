@@ -45,7 +45,8 @@ export const RegisterPage: React.FC = () => {
       const tenantData = await createTenant({
         name: companyName,
         primary_color: '#9213ec',
-        secondary_color: '#7a10c4'
+        secondary_color: '#7a10c4',
+        settings: {}
       });
 
       // 3. Create User Profile in Firestore

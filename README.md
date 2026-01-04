@@ -103,6 +103,47 @@ This creates an optimized production build in the `dist` folder.
 npm run preview
 ```
 
+## Deploy to Vercel
+
+This project is ready for deployment on Vercel. Follow these steps:
+
+### One-Click Deploy
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Iamjunade/ithelpdesk)
+
+### Manual Deployment
+
+1. **Push your code to GitHub** (already done!)
+
+2. **Import to Vercel**:
+   - Go to [vercel.com](https://vercel.com)
+   - Click "Add New Project"
+   - Import your GitHub repository
+
+3. **Configure Environment Variables**:
+   
+   In the Vercel dashboard, add these environment variables:
+   ```
+   GEMINI_API_KEY=your_actual_api_key
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_key
+   ```
+
+4. **Deploy**:
+   - Click "Deploy"
+   - Vercel will automatically detect the Vite framework and build your app
+   - Your app will be live in a few minutes!
+
+### Automatic Deployments
+
+Once connected, Vercel automatically deploys:
+- **Production**: Every push to `main` branch
+- **Preview**: Every pull request gets its own preview URL
+
+### Custom Domain
+
+After deployment, you can add a custom domain in your Vercel project settings.
+
 ## Contributing
 
 Found a bug? Have a feature idea? Feel free to open an issue or submit a pull request. 

@@ -3,13 +3,13 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Ticket, AISuggestion } from "../types";
 
 // Note: API_KEY is expected to be set in the environment variables.
-const API_KEY = process.env.API_KEY;
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 if (!API_KEY) {
-  console.warn("Gemini API key not found. AI features will be disabled. Please set process.env.API_KEY.");
+  console.warn("Gemini API key not found. AI features will be disabled. Please set VITE_GEMINI_API_KEY.");
 }
 
-const ai = new GoogleGenAI({ apiKey: API_KEY! });
+const ai = new GoogleGenAI({ apiKey: API_KEY || '' });
 
 const suggestionSchema = {
   type: Type.OBJECT,

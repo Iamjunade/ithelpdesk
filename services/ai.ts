@@ -1,8 +1,7 @@
-import { GoogleGenerativeAI } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { KnowledgeBaseArticle, TicketPriority } from '../types';
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
 
 export const aiService = {
   async classifyTicket(subject: string, description: string): Promise<{ category: string, priority: TicketPriority }> {
@@ -18,9 +17,11 @@ export const aiService = {
     `;
 
     try {
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: prompt
+      });
+      const text = response.text;
       return JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
     } catch (error) {
       console.error('AI Classification error:', error);
@@ -45,9 +46,11 @@ export const aiService = {
     `;
 
     try {
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return response.text();
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: prompt
+      });
+      return response.text;
     } catch (error) {
       console.error('AI Suggestion error:', error);
       return 'I am sorry, I could not generate a suggestion at this time.';

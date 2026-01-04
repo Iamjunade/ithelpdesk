@@ -5,10 +5,11 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Enterprise IT Helpdesk</title>
+  <title>HelpDesk Pro - Enterprise IT Support Platform</title>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
     rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <script>
     tailwind.config = {
@@ -16,28 +17,29 @@
       theme: {
         extend: {
           colors: {
-            primary: '#7c3aed', // Violet 600
-            secondary: '#4f46e5', // Indigo 600
-            'primary-dark': '#6d28d9',
-            accent: '#c084fc', // Purple 400
-            'background-light': '#f8fafc',
-            'background-dark': '#0f0720', // Deep dark violet
-            'surface-dark': '#1a102e',
+            primary: '#9213ec',
+            'primary-hover': '#7a10c4',
+            'primary-light': '#f3e8ff',
+            'background-light': '#f7f6f8',
+            'background-dark': '#1a1022',
+            'surface-light': '#ffffff',
+            'surface-dark': '#2d2438',
+            'text-main': '#151118',
+            'text-muted': '#796189',
           },
           fontFamily: {
             display: ['Inter', 'sans-serif'],
             sans: ['Inter', 'sans-serif']
           },
           borderRadius: {
-            DEFAULT: '0.375rem',
-            lg: '0.625rem',
-            xl: '1rem',
-            '2xl': '1.5rem',
+            DEFAULT: '0.5rem',
+            lg: '0.5rem',
+            xl: '0.75rem',
+            '2xl': '1rem',
             full: '9999px'
           },
           boxShadow: {
-            'glow': '0 0 40px -10px rgba(124, 58, 237, 0.3)',
-            'glow-sm': '0 0 20px -5px rgba(124, 58, 237, 0.2)',
+            'glow': '0 0 20px -5px rgba(146, 19, 236, 0.3)',
           }
         }
       }
@@ -53,23 +55,12 @@
     }
 
     ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
+      background-color: #cbd5e1;
+      border-radius: 20px;
     }
 
     .dark ::-webkit-scrollbar-thumb {
-      background: #334155;
-    }
-
-    .text-gradient {
-      background-clip: text;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-image: linear-gradient(to right, #7c3aed, #4f46e5);
+      background-color: #4b5563;
     }
   </style>
   <link rel="stylesheet" href="/index.css">

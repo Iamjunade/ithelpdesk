@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, query, where, getCountFromServer } from 'firebase/firestore';
-import { db } from '../services/firestore';
+import { db } from '../services/firebase';
 import { Building2, Users, Ticket, TrendingUp, Loader2 } from 'lucide-react';
 
 interface TenantStats {

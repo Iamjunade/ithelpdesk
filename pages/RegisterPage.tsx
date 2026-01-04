@@ -38,8 +38,8 @@ export const RegisterPage: React.FC = () => {
         .from('tenants')
         .insert([{
           name: companyName,
-          primary_color: '#7c3aed',
-          secondary_color: '#4f46e5'
+          primary_color: '#9213ec',
+          secondary_color: '#7a10c4'
         }])
         .select()
         .single();
@@ -92,7 +92,7 @@ export const RegisterPage: React.FC = () => {
 
         <div className="absolute bottom-0 left-0 right-0 p-16 text-white z-10 flex flex-col justify-end h-full bg-gradient-to-t from-black/60 via-transparent to-transparent">
           <blockquote className="max-w-2xl relative">
-            <div className="w-12 h-1 bg-gradient-to-r from-accent to-primary mb-6 rounded-full"></div>
+            <div className="w-12 h-1 bg-gradient-to-r from-primary to-purple-400 mb-6 rounded-full"></div>
             <p className="text-3xl font-medium leading-tight tracking-tight text-white/95 drop-shadow-sm">
               "Empower your organization with a platform built for{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-200 to-indigo-200 font-bold">

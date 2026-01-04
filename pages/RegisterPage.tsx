@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../services/supabase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../services/firebase';
+import { createTenant, createUserProfile } from '../services/firestore';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 import { Building2, Mail, Loader2, ArrowRight, ChevronRight, Shield } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
@@ -33,38 +37,30 @@ export const RegisterPage: React.FC = () => {
     }
 
     try {
-      // 1. Create Tenant
-      const { data: tenantData, error: tenantError } = await supabase
-        .from('tenants')
-        .insert([{
-          name: companyName,
-          primary_color: '#9213ec',
-          secondary_color: '#7a10c4'
-        }])
-        .select()
-        .single();
-
-      if (tenantError) throw tenantError;
-
-      // 2. Sign up User
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            tenant_id: tenantData.id,
-            full_name: fullName,
-            role_id: 'company_admin',
-            phone: phone || null
-          }
-        }
+      // 1. Create Tenant in Firestore
+      const tenantData = await createTenant({
+        name: companyName,
+        primary_color: '#9213ec',
+        secondary_color: '#7a10c4'
       });
 
-      if (signUpError) throw signUpError;
+      // 2. Create Firebase Auth User
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-      navigate('/login', { state: { message: 'Registration successful! Please check your email for verification.' } });
+      // 3. Create User Profile in Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        tenant_id: tenantData.id,
+        full_name: fullName,
+        email: email,
+        role_id: 'company_admin',
+        phone: phone || null,
+        created_at: new Date().toISOString()
+      });
+
+      navigate('/login', { state: { message: 'Registration successful! You can now sign in.' } });
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Failed to register');
     } finally {
       setLoading(false);
     }
@@ -80,7 +76,7 @@ export const RegisterPage: React.FC = () => {
             backgroundImage: 'url("https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=2000&q=80")'
           }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-950/90 via-purple-900/80 to-indigo-950/90 mix-blend-multiply"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-purple-900/80 to-primary-hover/90 mix-blend-multiply"></div>
           <div className="absolute inset-0 bg-black/10 backdrop-brightness-100"></div>
           <div
             className="absolute inset-0 opacity-20"
@@ -115,7 +111,7 @@ export const RegisterPage: React.FC = () => {
 
       {/* Right Side - Form */}
       <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-32 bg-white dark:bg-background-dark w-full lg:w-[48%] xl:w-[45%] relative overflow-y-auto max-h-screen shadow-2xl shadow-black/10 z-20">
-        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary via-purple-500 to-secondary lg:hidden"></div>
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary via-purple-500 to-primary-hover lg:hidden"></div>
 
         <div className="mx-auto w-full max-w-sm lg:w-[28rem] py-8">
           {/* Header */}
@@ -346,7 +342,7 @@ export const RegisterPage: React.FC = () => {
           {/* Footer */}
           <div className="mt-12 border-t border-slate-100 dark:border-white/5 pt-6 text-center lg:text-left">
             <p className="text-xs leading-5 text-slate-400 dark:text-slate-500">
-              © {new Date().getFullYear()} IT Helpdesk. Secure Enterprise Systems.
+              © {new Date().getFullYear()} HelpDesk Pro. Secure Enterprise Systems.
             </p>
           </div>
         </div>

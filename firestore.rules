@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to get user's tenant_id from users collection
+    function getUserTenantId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenant_id;
+    }
+    
+    // Helper function to check if user belongs to resource's tenant
+    function isSameTenant(tenantId) {
+      return isAuthenticated() && getUserTenantId() == tenantId;
+    }
+    
+    // Helper function to check user role
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role_id;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      let role = getUserRole();
+      return role == 'platform_admin' || role == 'company_admin';
+    }
+    
+    // Tenants collection
+    match /tenants/{tenantId} {
+      // Only platform admins can list all tenants
+      allow list: if isAuthenticated() && getUserRole() == 'platform_admin';
+      
+      // Users can read their own tenant
+      allow get: if isSameTenant(tenantId);
+      
+      // Only authenticated users can create tenants (during registration)
+      allow create: if isAuthenticated();
+      
+      // Only admins of the tenant can update it
+      allow update: if isSameTenant(tenantId) && isAdmin();
+      
+      // No one can delete tenants (soft delete in app logic if needed)
+      allow delete: if false;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Users can read users in their tenant
+      allow read: if isAuthenticated() && (
+        userId == request.auth.uid || 
+        isSameTenant(resource.data.tenant_id)
+      );
+      
+      // Users can create their own profile during registration
+      allow create: if isAuthenticated() && userId == request.auth.uid;
+      
+      // Users can update their own profile, admins can update any user in their tenant
+      allow update: if isAuthenticated() && (
+        userId == request.auth.uid ||
+        (isSameTenant(resource.data.tenant_id) && isAdmin())
+      );
+      
+      // No deletions allowed
+      allow delete: if false;
+    }
+    
+    // Tickets collection
+    match /tickets/{ticketId} {
+      // Users can read tickets in their tenant
+      allow read: if isAuthenticated() && isSameTenant(resource.data.tenant_id);
+      
+      // Users can create tickets in their tenant
+      allow create: if isAuthenticated() && isSameTenant(request.resource.data.tenant_id);
+      
+      // Users can update tickets in their tenant
+      allow update: if isAuthenticated() && isSameTenant(resource.data.tenant_id);
+      
+      // Only admins can delete tickets
+      allow delete: if isAuthenticated() && isSameTenant(resource.data.tenant_id) && isAdmin();
+      
+      // Ticket comments subcollection
+      match /comments/{commentId} {
+        allow read: if isAuthenticated() && isSameTenant(get(/databases/$(database)/documents/tickets/$(ticketId)).data.tenant_id);
+        allow create: if isAuthenticated() && isSameTenant(get(/databases/$(database)/documents/tickets/$(ticketId)).data.tenant_id);
+        allow update, delete: if false; // Comments cannot be edited or deleted
+      }
+    }
+    
+    // SLAs collection
+    match /slas/{slaId} {
+      // Users can read SLAs in their tenant
+      allow read: if isAuthenticated() && isSameTenant(resource.data.tenant_id);
+      
+      // Only admins can create, update, or delete SLAs
+      allow create: if isAuthenticated() && isSameTenant(request.resource.data.tenant_id) && isAdmin();
+      allow update: if isAuthenticated() && isSameTenant(resource.data.tenant_id) && isAdmin();
+      allow delete: if isAuthenticated() && isSameTenant(resource.data.tenant_id) && isAdmin();
+    }
+    
+    // Knowledge base collection
+    match /knowledge_base/{articleId} {
+      // Users can read KB articles in their tenant
+      allow read: if isAuthenticated() && isSameTenant(resource.data.tenant_id);
+      
+      // IT managers and admins can create/update/delete KB articles
+      allow create: if isAuthenticated() && isSameTenant(request.resource.data.tenant_id) && (
+        isAdmin() || getUserRole() == 'it_manager'
+      );
+      allow update, delete: if isAuthenticated() && isSameTenant(resource.data.tenant_id) && (
+        isAdmin() || getUserRole() == 'it_manager'
+      );
+    }
+    
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

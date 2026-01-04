@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+import { auth } from './firebase';
+import { getUserProfile, getTenantById } from './firestore';
 import { Profile, Tenant } from '../types';
 
 interface AuthContextType {
@@ -22,26 +23,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfileAndTenant = async (userId: string) => {
     try {
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select(`
-          *,
-          tenant:tenants(*)
-        `)
-        .eq('id', userId)
-        .single();
-
-      if (profileError) throw profileError;
+      // Fetch user profile from Firestore
+      const profileData = await getUserProfile(userId);
 
       if (profileData) {
-        setProfile(profileData as Profile);
-        setTenant(profileData.tenant as Tenant);
-        
-        // Apply tenant branding to CSS variables
-        if (profileData.tenant) {
-          const root = document.documentElement;
-          root.style.setProperty('--primary-color', profileData.tenant.primary_color);
-          root.style.setProperty('--secondary-color', profileData.tenant.secondary_color);
+        setProfile(profileData);
+
+        // Fetch tenant data
+        if (profileData.tenant_id) {
+          const tenantData = await getTenantById(profileData.tenant_id);
+          if (tenantData) {
+            setTenant(tenantData);
+
+            // Apply tenant branding to CSS variables
+            const root = document.documentElement;
+            root.style.setProperty('--primary-color', tenantData.primary_color);
+            root.style.setProperty('--secondary-color', tenantData.secondary_color);
+          }
         }
       }
     } catch (error) {
@@ -52,21 +50,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Check active sessions
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfileAndTenant(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
+    // Listen for auth state changes
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfileAndTenant(session.user.id);
+      if (firebaseUser) {
+        await fetchProfileAndTenant(firebaseUser.uid);
       } else {
         setProfile(null);
         setTenant(null);
@@ -74,15 +63,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => unsubscribe();
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await firebaseSignOut(auth);
+    setProfile(null);
+    setTenant(null);
   };
 
   const refreshProfile = async () => {
-    if (user) await fetchProfileAndTenant(user.id);
+    if (user) await fetchProfileAndTenant(user.uid);
   };
 
   return (

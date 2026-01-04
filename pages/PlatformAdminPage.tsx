@@ -1,160 +1,165 @@
-import React, { useEffect, useState } from 'react';
-import { supabase } from '../services/supabase';
-import { Tenant } from '../types';
-import { 
-  Building2, 
-  Users, 
-  Ticket, 
-  Settings, 
-  Activity, 
-  Loader2,
-  ExternalLink,
-  ShieldAlert
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { collection, getDocs, query, where, getCountFromServer } from 'firebase/firestore';
+import { db } from '../services/firestore';
+import { Building2, Users, Ticket, TrendingUp, Loader2 } from 'lucide-react';
+
+interface TenantStats {
+  id: string;
+  name: string;
+  userCount: number;
+  ticketCount: number;
+  created_at: string;
+}
 
 export const PlatformAdminPage: React.FC = () => {
-  const [tenants, setTenants] = useState<any[]>([]);
+  const [tenants, setTenants] = useState<TenantStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalTenants: 0,
-    totalUsers: 0,
-    totalTickets: 0
-  });
 
   useEffect(() => {
-    loadPlatformData();
+    const fetchTenants = async () => {
+      try {
+        const tenantsSnapshot = await getDocs(collection(db, 'tenants'));
+        const tenantsData = await Promise.all(
+          tenantsSnapshot.docs.map(async (doc) => {
+            const tenantData = doc.data();
+
+            // Get user count for this tenant
+            const usersQuery = query(collection(db, 'users'), where('tenant_id', '==', doc.id));
+            const usersCount = await getCountFromServer(usersQuery);
+
+            // Get ticket count for this tenant
+            const ticketsQuery = query(collection(db, 'tickets'), where('tenant_id', '==', doc.id));
+            const ticketsCount = await getCountFromServer(ticketsQuery);
+
+            return {
+              id: doc.id,
+              name: tenantData.name,
+              userCount: usersCount.data().count,
+              ticketCount: ticketsCount.data().count,
+              created_at: tenantData.created_at?.toDate?.()?.toISOString() || new Date().toISOString(),
+            };
+          })
+        );
+
+        setTenants(tenantsData);
+      } catch (error) {
+        console.error('Error fetching tenants:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTenants();
   }, []);
 
-  const loadPlatformData = async () => {
-    try {
-      // Fetch all tenants
-      const { data: tenantData } = await supabase.from('tenants').select('*');
-      
-      // For each tenant, fetch user and ticket counts
-      // (In a production app, we'd use a more efficient query or a materialized view)
-      const enrichedTenants = await Promise.all((tenantData || []).map(async (t) => {
-        const { count: userCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('tenant_id', t.id);
-        const { count: ticketCount } = await supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('tenant_id', t.id);
-        return { ...t, userCount, ticketCount };
-      }));
-
-      setTenants(enrichedTenants);
-      
-      setStats({
-        totalTenants: enrichedTenants.length,
-        totalUsers: enrichedTenants.reduce((acc, t) => acc + (t.userCount || 0), 0),
-        totalTickets: enrichedTenants.reduce((acc, t) => acc + (t.ticketCount || 0), 0)
-      });
-    } catch (error) {
-      console.error('Error loading platform data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Platform Super Admin</h1>
-        <p className="text-sm text-gray-500">Global overview and multi-tenant management</p>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 font-medium">Total Companies</p>
-              <h3 className="text-2xl font-bold text-gray-900">{stats.totalTenants}</h3>
-            </div>
-            <Building2 className="h-8 w-8 text-blue-100" />
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 font-medium">Total Users</p>
-              <h3 className="text-2xl font-bold text-gray-900">{stats.totalUsers}</h3>
-            </div>
-            <Users className="h-8 w-8 text-green-100" />
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-purple-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 font-medium">Total Tickets</p>
-              <h3 className="text-2xl font-bold text-gray-900">{stats.totalTickets}</h3>
-            </div>
-            <Ticket className="h-8 w-8 text-purple-100" />
-          </div>
+    <div className="px-4 sm:px-6 lg:px-8 py-8">
+      <div className="sm:flex sm:items-center">
+        <div className="sm:flex-auto">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <Building2 className="h-7 w-7 text-primary" />
+            Platform Administration
+          </h1>
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-400">
+            Overview of all tenants and platform statistics
+          </p>
         </div>
       </div>
 
-      {/* Tenant List */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-lg font-medium text-gray-900">Active Tenants</h2>
-          <button className="text-sm text-blue-600 font-medium hover:text-blue-500">Onboard New Company</button>
+      <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Building2 className="h-6 w-6 text-primary" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                    Total Tenants
+                  </dt>
+                  <dd className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {tenants.length}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {loading ? (
-          <div className="p-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-blue-600" /></div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subdomain</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tickets</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {tenants.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-8 w-8 rounded bg-gray-100 flex items-center justify-center mr-3">
-                          {t.logo_url ? <img src={t.logo_url} className="h-6 w-6 object-contain" /> : <Building2 className="h-4 w-4 text-gray-400" />}
-                        </div>
-                        <div className="text-sm font-medium text-gray-900">{t.name}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {t.subdomain || 'Not set'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {t.userCount}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {t.ticketCount}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-gray-400 hover:text-blue-600 mr-4">
-                        <ExternalLink className="h-4 w-4" />
-                      </button>
-                      <button className="text-gray-400 hover:text-red-600">
-                        <ShieldAlert className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Users className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                    Total Users
+                  </dt>
+                  <dd className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {tenants.reduce((sum, t) => sum + t.userCount, 0)}
+                  </dd>
+                </dl>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Ticket className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                    Total Tickets
+                  </dt>
+                  <dd className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {tenants.reduce((sum, t) => sum + t.ticketCount, 0)}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-        <div className="flex items-center space-x-3 text-gray-600">
-          <Activity className="h-5 w-5" />
-          <h3 className="font-medium">System Health: All systems operational</h3>
+      <div className="mt-8">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Tenant Details</h2>
+        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+            {tenants.map((tenant) => (
+              <li key={tenant.id} className="px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {tenant.name}
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {tenant.userCount} users • {tenant.ticketCount} tickets
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                      Active
+                    </span>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>

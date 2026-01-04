@@ -37,16 +37,16 @@ export const RegisterPage: React.FC = () => {
     }
 
     try {
-      // 1. Create Tenant in Firestore
+      // 1. Create Firebase Auth User FIRST (so we're authenticated for Firestore writes)
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // 2. Create Tenant in Firestore (now user is authenticated)
       const tenantData = await createTenant({
         name: companyName,
         primary_color: '#9213ec',
         secondary_color: '#7a10c4'
       });
-
-      // 2. Create Firebase Auth User
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
 
       // 3. Create User Profile in Firestore
       await setDoc(doc(db, 'users', user.uid), {
@@ -58,7 +58,7 @@ export const RegisterPage: React.FC = () => {
         created_at: new Date().toISOString()
       });
 
-      navigate('/login', { state: { message: 'Registration successful! You can now sign in.' } });
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Failed to register');
     } finally {

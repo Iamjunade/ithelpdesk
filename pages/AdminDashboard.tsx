@@ -96,8 +96,11 @@ export const AdminDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState<{
         total: number;
-        byStatus: Record<TicketStatus, number>;
-        byPriority: Record<TicketPriority, number>;
+        open: number;
+        in_progress: number;
+        resolved: number;
+        closed: number;
+        by_priority: Record<string, number>;
     } | null>(null);
 
     const primaryColor = tenant?.primary_color || '#3b82f6';
@@ -105,16 +108,38 @@ export const AdminDashboard: React.FC = () => {
     // Fetch data
     useEffect(() => {
         const fetchData = async () => {
-            if (!tenant?.id) return;
+            if (!tenant?.id) {
+                setLoading(false);
+                return;
+            }
 
             setLoading(true);
             try {
-                const [ticketsData, usersData, statsData] = await Promise.all([
-                    getTickets(tenant.id),
-                    getUsersByTenant(tenant.id),
-                    getTicketStats(tenant.id),
-                ]);
-                setTickets(ticketsData.slice(0, 10)); // Get recent 10
+                // Fetch data with individual error handling - don't let one failure block all
+                let ticketsData: Ticket[] = [];
+                let usersData: Profile[] = [];
+                let statsData: any = { total: 0, open: 0, in_progress: 0, resolved: 0, closed: 0, by_priority: {} };
+
+                try {
+                    ticketsData = await getTickets(tenant.id);
+                } catch (err) {
+                    console.error('Error fetching tickets:', err);
+                    // Tickets query might need Firestore index, continue anyway
+                }
+
+                try {
+                    usersData = await getUsersByTenant(tenant.id);
+                } catch (err) {
+                    console.error('Error fetching users:', err);
+                }
+
+                try {
+                    statsData = await getTicketStats(tenant.id);
+                } catch (err) {
+                    console.error('Error fetching stats:', err);
+                }
+
+                setTickets(ticketsData.slice(0, 10));
                 setUsers(usersData);
                 setStats(statsData);
             } catch (error) {
@@ -204,21 +229,21 @@ export const AdminDashboard: React.FC = () => {
                 />
                 <StatCard
                     title="Open Tickets"
-                    value={stats?.byStatus?.open || 0}
+                    value={stats?.open || 0}
                     icon={<Clock className="w-6 h-6 text-blue-600" />}
                     color="#2563eb"
                     onClick={() => navigate('/dashboard/tickets?status=open')}
                 />
                 <StatCard
                     title="In Progress"
-                    value={stats?.byStatus?.in_progress || 0}
+                    value={stats?.in_progress || 0}
                     icon={<Activity className="w-6 h-6 text-yellow-600" />}
                     color="#ca8a04"
                     onClick={() => navigate('/dashboard/tickets?status=in_progress')}
                 />
                 <StatCard
                     title="Resolved"
-                    value={stats?.byStatus?.resolved || 0}
+                    value={stats?.resolved || 0}
                     icon={<CheckCircle className="w-6 h-6 text-green-600" />}
                     color="#16a34a"
                     onClick={() => navigate('/dashboard/tickets?status=resolved')}

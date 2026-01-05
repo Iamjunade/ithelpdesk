@@ -31,7 +31,7 @@ export const DashboardLayout: React.FC = () => {
 
   // Use resolved tenant if auth tenant not yet loaded
   const activeTenant = tenant || resolvedTenant;
-  const primaryColor = activeTenant?.primary_color || '#3b82f6';
+  const primaryColor = activeTenant?.primary_color || '#9213ec';
 
   const handleSignOut = async () => {
     await signOut();

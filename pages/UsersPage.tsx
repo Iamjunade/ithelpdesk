@@ -244,7 +244,7 @@ export const UsersPage: React.FC = () => {
             <button
               onClick={() => setShowAddModal(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-white transition-colors"
-              style={{ backgroundColor: tenant?.primary_color || '#3b82f6' }}
+              style={{ backgroundColor: tenant?.primary_color || '#9213ec' }}
             >
               <UserPlus className="w-4 h-4" />
               Add User
@@ -486,7 +486,7 @@ export const UsersPage: React.FC = () => {
               type="submit"
               disabled={modalLoading}
               className="flex-1 px-4 py-2 rounded-lg text-white disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ backgroundColor: tenant?.primary_color || '#3b82f6' }}
+              style={{ backgroundColor: tenant?.primary_color || '#9213ec' }}
             >
               {modalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
               Create User
@@ -556,7 +556,7 @@ export const UsersPage: React.FC = () => {
               type="submit"
               disabled={modalLoading}
               className="flex-1 px-4 py-2 rounded-lg text-white disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ backgroundColor: tenant?.primary_color || '#3b82f6' }}
+              style={{ backgroundColor: tenant?.primary_color || '#9213ec' }}
             >
               {modalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
               Send Invitation

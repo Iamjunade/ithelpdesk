@@ -225,7 +225,7 @@ export const AcceptInvitePage: React.FC = () => {
                 {/* Header Card */}
                 <div
                     className="bg-white dark:bg-gray-800 rounded-t-2xl shadow-xl p-6 border-b-4"
-                    style={{ borderBottomColor: tenant?.primary_color || '#3b82f6' }}
+                    style={{ borderBottomColor: tenant?.primary_color || '#9213ec' }}
                 >
                     <div className="flex items-center gap-4">
                         {tenant?.logo_url ? (
@@ -331,7 +331,7 @@ export const AcceptInvitePage: React.FC = () => {
                             type="submit"
                             disabled={submitting}
                             className="w-full py-3 rounded-xl text-white font-semibold transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
-                            style={{ backgroundColor: tenant?.primary_color || '#3b82f6' }}
+                            style={{ backgroundColor: tenant?.primary_color || '#9213ec' }}
                         >
                             {submitting ? (
                                 <>

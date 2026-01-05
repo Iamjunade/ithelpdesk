@@ -103,7 +103,7 @@ export const AdminDashboard: React.FC = () => {
         by_priority: Record<string, number>;
     } | null>(null);
 
-    const primaryColor = tenant?.primary_color || '#3b82f6';
+    const primaryColor = tenant?.primary_color || '#9213ec';
 
     // Fetch data
     useEffect(() => {

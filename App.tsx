@@ -16,6 +16,7 @@ import { SlaPage } from './pages/SlaPage';
 import { KbPage } from './pages/KbPage';
 import { UsersPage } from './pages/UsersPage';
 import { PlatformAdminPage } from './pages/PlatformAdminPage';
+import { PitchPage } from './pages/PitchPage';
 
 export const App: React.FC = () => {
   return (
@@ -29,6 +30,7 @@ export const App: React.FC = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/accept-invite/:token" element={<AcceptInvitePage />} />
+            <Route path="/pitch" element={<PitchPage />} />
 
             {/* Dashboard Routes */}
             <Route path="/dashboard" element={

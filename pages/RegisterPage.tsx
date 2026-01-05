@@ -24,6 +24,7 @@ export const RegisterPage: React.FC = () => {
 
   // Form state
   const [companyName, setCompanyName] = useState('');
+  const [companyUrl, setCompanyUrl] = useState('');
   const [subdomain, setSubdomain] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -126,6 +127,7 @@ export const RegisterPage: React.FC = () => {
       const tenantData = await createTenantWithDefaults({
         name: companyName,
         subdomain: subdomain,
+        website_url: companyUrl || undefined,
         primary_color: '#9213ec',
         secondary_color: '#7a10c4',
       });
@@ -296,6 +298,30 @@ export const RegisterPage: React.FC = () => {
                     <p className="mt-2 text-sm ml-1">{getSubdomainMessage()}</p>
                   )}
                 </div>
+              </div>
+
+              {/* Company Website URL */}
+              <div>
+                <label htmlFor="company_url" className="block text-sm font-semibold leading-6 text-slate-700 dark:text-slate-300 ml-1">
+                  Company Website <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
+                <div className="mt-2 relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Globe className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <input
+                    id="company_url"
+                    name="company_url"
+                    type="url"
+                    value={companyUrl}
+                    onChange={(e) => setCompanyUrl(e.target.value)}
+                    placeholder="https://www.yourcompany.com"
+                    className="block w-full rounded-xl border-0 py-3.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-white/10 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-primary dark:bg-white/5 dark:text-white sm:text-sm sm:leading-6 pl-12 transition-all duration-200 ease-in-out hover:ring-slate-300 dark:hover:ring-white/20 bg-slate-50/30"
+                  />
+                </div>
+                <p className="mt-1.5 text-xs text-slate-500 ml-1">
+                  🤖 AI will use this to customize your helpdesk branding automatically
+                </p>
               </div>
 
               {/* Admin Name */}

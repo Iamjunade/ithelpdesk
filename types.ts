@@ -33,6 +33,7 @@ export interface Tenant {
   name: string;
   subdomain: string;              // Required: unique subdomain (e.g., "abccorp")
   custom_domain?: string;         // Optional: custom domain (e.g., "help.abccorp.com")
+  website_url?: string;           // Company website for AI branding extraction
   logo_url?: string;
   favicon_url?: string;           // Custom favicon
   primary_color: string;

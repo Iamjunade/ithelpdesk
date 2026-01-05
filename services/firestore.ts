@@ -47,6 +47,7 @@ export interface CreateTenantInput {
     name: string;
     subdomain: string;
     custom_domain?: string;
+    website_url?: string;  // Company website for AI branding
     logo_url?: string;
     primary_color?: string;
     secondary_color?: string;
@@ -71,6 +72,7 @@ export const createTenantWithDefaults = async (
         name: input.name,
         subdomain: input.subdomain.toLowerCase(),
         custom_domain: input.custom_domain?.toLowerCase(),
+        website_url: input.website_url,
         logo_url: input.logo_url,
         primary_color: input.primary_color || '#9213ec',
         secondary_color: input.secondary_color || '#7a10c4',

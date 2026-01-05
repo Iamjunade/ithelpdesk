@@ -61,8 +61,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (profileData.tenant_id) {
           const tenantData = await getTenantById(profileData.tenant_id);
           if (tenantData) {
-            // Check if tenant is active
-            if (!tenantData.is_active) {
+            // Check if tenant is explicitly deactivated (undefined = active for backward compatibility)
+            if (tenantData.is_active === false) {
               setError('This organization has been deactivated. Please contact support.');
               await firebaseSignOut(auth);
               setProfile(null);

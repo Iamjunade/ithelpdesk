@@ -94,10 +94,11 @@ export const getCustomDomain = (): string => {
 export const getTenantBySubdomain = async (subdomain: string): Promise<Tenant | null> => {
     try {
         const tenantsRef = collection(db, 'tenants');
+        // Don't filter by is_active here - let app layer handle it
+        // This allows queries to work for tenants created before the is_active field existed
         const q = query(
             tenantsRef,
             where('subdomain', '==', subdomain.toLowerCase()),
-            where('is_active', '==', true),
             limit(1)
         );
 
@@ -124,10 +125,10 @@ export const getTenantBySubdomain = async (subdomain: string): Promise<Tenant | 
 export const getTenantByCustomDomain = async (domain: string): Promise<Tenant | null> => {
     try {
         const tenantsRef = collection(db, 'tenants');
+        // Don't filter by is_active here - let app layer handle it
         const q = query(
             tenantsRef,
             where('custom_domain', '==', domain.toLowerCase()),
-            where('is_active', '==', true),
             limit(1)
         );
 

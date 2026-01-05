@@ -1,24 +1,80 @@
 export type RoleId = 'platform_admin' | 'company_admin' | 'it_manager' | 'support_agent' | 'employee';
 
+// Tenant settings configuration
+export interface TenantSettings {
+  default_ticket_priority: TicketPriority;
+  auto_assign_tickets: boolean;
+  enable_ai_suggestions: boolean;
+  enable_knowledge_base: boolean;
+  enable_sla_tracking: boolean;
+  working_hours?: {
+    start: string;  // "09:00"
+    end: string;    // "18:00"
+    days: number[]; // [1,2,3,4,5] = Mon-Fri
+  };
+}
+
+// Default tenant settings
+export const DEFAULT_TENANT_SETTINGS: TenantSettings = {
+  default_ticket_priority: 'medium',
+  auto_assign_tickets: false,
+  enable_ai_suggestions: true,
+  enable_knowledge_base: true,
+  enable_sla_tracking: true,
+  working_hours: {
+    start: '09:00',
+    end: '18:00',
+    days: [1, 2, 3, 4, 5], // Monday to Friday
+  },
+};
+
 export interface Tenant {
   id: string;
   name: string;
-  subdomain?: string;
-  custom_domain?: string;
+  subdomain: string;              // Required: unique subdomain (e.g., "abccorp")
+  custom_domain?: string;         // Optional: custom domain (e.g., "help.abccorp.com")
   logo_url?: string;
+  favicon_url?: string;           // Custom favicon
   primary_color: string;
   secondary_color: string;
-  settings: Record<string, any>;
+  accent_color?: string;          // Accent color for highlights
+  email_from_name?: string;       // Email sender name
+  email_from_address?: string;    // Email sender address
+  timezone: string;               // Default timezone
+  language: string;               // Default language
+  settings: TenantSettings;       // Typed settings
+  is_active: boolean;             // Tenant activation status
+  subscription_plan?: string;     // Subscription tier
   created_at: string;
+  updated_at?: string;
 }
 
 export interface Profile {
   id: string;
   tenant_id: string;
   role_id: RoleId;
+  email: string;
   full_name: string;
   avatar_url?: string;
+  phone?: string;
+  is_active: boolean;
+  invited_by?: string;
+  invited_at?: string;
+  created_at?: string;
   tenant?: Tenant;
+}
+
+// Invitation for employee onboarding
+export interface Invitation {
+  id: string;
+  tenant_id: string;
+  email: string;
+  role_id: RoleId;
+  invited_by: string;
+  token: string;
+  expires_at: string;
+  accepted_at?: string;
+  created_at: string;
 }
 
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
@@ -29,6 +85,20 @@ export type TicketCategory = 'hardware' | 'software' | 'network' | 'security' | 
 export const TICKET_STATUSES: TicketStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
 export const TICKET_PRIORITIES: TicketPriority[] = ['low', 'medium', 'high', 'urgent'];
 export const TICKET_CATEGORIES: TicketCategory[] = ['hardware', 'software', 'network', 'security', 'access', 'other'];
+
+// Default SLA configuration
+export interface DefaultSLA {
+  priority: TicketPriority;
+  response_hours: number;
+  resolution_hours: number;
+}
+
+export const DEFAULT_SLAS: DefaultSLA[] = [
+  { priority: 'urgent', response_hours: 1, resolution_hours: 4 },
+  { priority: 'high', response_hours: 4, resolution_hours: 8 },
+  { priority: 'medium', response_hours: 8, resolution_hours: 24 },
+  { priority: 'low', response_hours: 24, resolution_hours: 72 },
+];
 
 export interface TicketAttachment {
   id: string;
@@ -89,4 +159,6 @@ export interface SLA {
   priority: TicketPriority;
   response_time_hours: number;
   resolution_time_hours: number;
+  is_active: boolean;
+  created_at?: string;
 }

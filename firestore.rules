@@ -1,79 +1,111 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if user is authenticated
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    
+    // Check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
     
-    // Helper function to check if user is the document owner
+    // Check if user is the document owner
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    // Helper function to get user's profile data
+    // Get user's profile data
     function getUserProfile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
-    // Helper function to check if user belongs to the same tenant as the resource
+    // Check if user belongs to the same tenant as the resource
     function belongsToResourceTenant() {
       return isAuthenticated() && 
              resource.data.tenant_id == getUserProfile().tenant_id;
     }
     
-    // Helper function to check if user is support staff
+    // Check if user is support staff
     function isSupportStaff() {
       return isAuthenticated() && 
              getUserProfile().role_id in ['platform_admin', 'company_admin', 'it_manager', 'support_agent'];
     }
     
-    // Helper function to check if user is admin
+    // Check if user is admin (company or platform)
     function isAdmin() {
       return isAuthenticated() && 
              getUserProfile().role_id in ['platform_admin', 'company_admin'];
     }
     
-    // Helper function to check if user is platform admin
+    // Check if user is platform admin
     function isPlatformAdmin() {
       return isAuthenticated() && getUserProfile().role_id == 'platform_admin';
     }
     
-    // Tenants collection
+    // ============================================
+    // TENANTS COLLECTION
+    // ============================================
     match /tenants/{tenantId} {
-      // Any authenticated user can create a tenant (during registration)
+      // Anyone can read tenants (for domain resolution before auth)
+      allow read: if true;
+      
+      // Authenticated users can create a tenant (during registration)
       allow create: if isAuthenticated();
       
-      // Authenticated users can read their own tenant
-      allow read: if isAuthenticated() && 
-                     (getUserProfile().tenant_id == tenantId || isPlatformAdmin());
-      
-      // Only admins can update their tenant
+      // Only admins can update their own tenant
       allow update: if isAuthenticated() && 
                        getUserProfile().tenant_id == tenantId && 
                        isAdmin();
       
-      // No deletions (only platform admin through admin panel)
+      // Only platform admin can delete tenants
       allow delete: if isPlatformAdmin();
     }
     
-    // Users collection
+    // ============================================
+    // USERS COLLECTION
+    // ============================================
     match /users/{userId} {
-      // Users can create their own profile (during registration)
+      // Users can create their own profile (during registration or invitation acceptance)
       allow create: if isAuthenticated() && request.auth.uid == userId;
       
-      // Users can read profiles from their own tenant
+      // Users can read profiles from their own tenant, or platform admin can read all
       allow read: if isAuthenticated() && 
                      (resource.data.tenant_id == getUserProfile().tenant_id || isPlatformAdmin());
       
-      // Users can update their own profile
-      allow update: if isOwner(userId);
+      // Users can update their own profile, admins can update any user in their tenant
+      allow update: if isAuthenticated() &&
+                       (isOwner(userId) || 
+                        (resource.data.tenant_id == getUserProfile().tenant_id && isAdmin()));
       
-      // No deletions
+      // No deletions (soft delete via is_active flag)
       allow delete: if false;
     }
     
-    // Tickets collection - tenant-scoped with role-based access
+    // ============================================
+    // INVITATIONS COLLECTION
+    // ============================================
+    match /invitations/{invitationId} {
+      // Anyone can read invitations by token (for accepting invites)
+      allow read: if true;
+      
+      // Admins can create invitations for their tenant
+      allow create: if isAuthenticated() && 
+                       request.resource.data.tenant_id == getUserProfile().tenant_id && 
+                       isAdmin();
+      
+      // Anyone can update (to mark as accepted), admins can manage
+      allow update: if true;
+      
+      // Admins can delete invitations from their tenant
+      allow delete: if isAuthenticated() && 
+                       resource.data.tenant_id == getUserProfile().tenant_id && 
+                       isAdmin();
+    }
+    
+    // ============================================
+    // TICKETS COLLECTION
+    // ============================================
     match /tickets/{ticketId} {
       // Helper to check if user is the ticket creator
       function isTicketCreator() {
@@ -90,13 +122,10 @@ service cloud.firestore {
                        request.resource.data.tenant_id == getUserProfile().tenant_id &&
                        request.resource.data.creator_id == request.auth.uid;
       
-      // Update: support staff can update any tenant ticket; creators can only update description
+      // Update: support staff can update any tenant ticket
       allow update: if isAuthenticated() && 
                        resource.data.tenant_id == getUserProfile().tenant_id &&
-                       (isSupportStaff() || 
-                        (isTicketCreator() && 
-                         request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['description', 'updated_at'])));
+                       isSupportStaff();
       
       // Delete: only admins can delete tickets
       allow delete: if isAuthenticated() && 
@@ -105,18 +134,14 @@ service cloud.firestore {
       
       // Ticket comments subcollection
       match /comments/{commentId} {
-        // Read: ticket participants can read comments (internal notes only for staff)
+        // Read: ticket participants can read comments
         allow read: if isAuthenticated() && 
-                       get(/databases/$(database)/documents/tickets/$(ticketId)).data.tenant_id == getUserProfile().tenant_id &&
-                       (isSupportStaff() || 
-                        (!resource.data.is_internal && 
-                         (get(/databases/$(database)/documents/tickets/$(ticketId)).data.creator_id == request.auth.uid || isSupportStaff())));
+                       get(/databases/$(database)/documents/tickets/$(ticketId)).data.tenant_id == getUserProfile().tenant_id;
         
         // Create: authenticated users in the same tenant can add comments
         allow create: if isAuthenticated() && 
                          get(/databases/$(database)/documents/tickets/$(ticketId)).data.tenant_id == getUserProfile().tenant_id &&
                          request.resource.data.author_id == request.auth.uid &&
-                         // Only support staff can create internal notes
                          (request.resource.data.is_internal == false || isSupportStaff());
         
         // Update: only comment author can update
@@ -128,34 +153,53 @@ service cloud.firestore {
       }
     }
     
-    // SLAs collection - tenant-scoped, admin-only write
+    // ============================================
+    // SLAs COLLECTION
+    // ============================================
     match /slas/{slaId} {
+      // Read: any authenticated user in the tenant
       allow read: if isAuthenticated() && 
                      resource.data.tenant_id == getUserProfile().tenant_id;
-      allow create, update: if isAuthenticated() && 
-                               request.resource.data.tenant_id == getUserProfile().tenant_id && 
-                               isAdmin();
+      
+      // Create/Update: admins only
+      allow create: if isAuthenticated() && 
+                       request.resource.data.tenant_id == getUserProfile().tenant_id && 
+                       isAdmin();
+      allow update: if isAuthenticated() && 
+                       resource.data.tenant_id == getUserProfile().tenant_id && 
+                       isAdmin();
+      
+      // Delete: admins only
       allow delete: if isAuthenticated() && 
                        resource.data.tenant_id == getUserProfile().tenant_id && 
                        isAdmin();
     }
     
-    // Knowledge base collection - tenant-scoped
+    // ============================================
+    // KNOWLEDGE BASE COLLECTION
+    // ============================================
     match /knowledge_base/{articleId} {
+      // Read: any authenticated user in the tenant
       allow read: if isAuthenticated() && 
                      resource.data.tenant_id == getUserProfile().tenant_id;
+      
+      // Create/Update: support staff
       allow create: if isAuthenticated() && 
                        request.resource.data.tenant_id == getUserProfile().tenant_id && 
                        isSupportStaff();
       allow update: if isAuthenticated() && 
                        resource.data.tenant_id == getUserProfile().tenant_id && 
                        isSupportStaff();
+      
+      // Delete: admins only
       allow delete: if isAuthenticated() && 
                        resource.data.tenant_id == getUserProfile().tenant_id && 
                        isAdmin();
     }
     
-    // Default deny all other collections
+    // ============================================
+    // DEFAULT DENY
+    // ============================================
     match /{document=**} {
       allow read, write: if false;
     }

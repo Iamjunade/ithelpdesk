@@ -1,31 +1,106 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../services/firebase';
-import { createTenant, createUserProfile } from '../services/firestore';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../services/firebase';
-import { Building2, Mail, Loader2, ArrowRight, ChevronRight, Shield } from 'lucide-react';
+import { createTenantWithDefaults, createUserProfile } from '../services/firestore';
+import { isSubdomainAvailable, isValidSubdomain } from '../services/tenantResolver';
+import { useTenant } from '../services/TenantContext';
+import {
+  Building2,
+  Mail,
+  Loader2,
+  ArrowRight,
+  ChevronRight,
+  Shield,
+  Globe,
+  CheckCircle,
+  XCircle,
+  AlertCircle
+} from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { tenant, isPublicAccess } = useTenant();
+
+  // Form state
   const [companyName, setCompanyName] = useState('');
+  const [subdomain, setSubdomain] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
+
+  // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const [subdomainStatus, setSubdomainStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+
+  // If we're on a tenant domain, redirect to login (employees can't self-register)
+  useEffect(() => {
+    if (tenant && !isPublicAccess) {
+      navigate('/login');
+    }
+  }, [tenant, isPublicAccess, navigate]);
+
+  // Auto-generate subdomain from company name
+  useEffect(() => {
+    if (companyName && !subdomain) {
+      const suggested = companyName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .slice(0, 20);
+      if (suggested.length >= 3) {
+        setSubdomain(suggested);
+      }
+    }
+  }, [companyName]);
+
+  // Check subdomain availability with debounce
+  const checkSubdomain = useCallback(async (value: string) => {
+    if (!value || value.length < 3) {
+      setSubdomainStatus('idle');
+      return;
+    }
+
+    if (!isValidSubdomain(value)) {
+      setSubdomainStatus('invalid');
+      return;
+    }
+
+    setSubdomainStatus('checking');
+
+    try {
+      const available = await isSubdomainAvailable(value);
+      setSubdomainStatus(available ? 'available' : 'taken');
+    } catch {
+      setSubdomainStatus('idle');
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      checkSubdomain(subdomain);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [subdomain, checkSubdomain]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    // Validations
     if (password !== confirmPassword) {
       setError("Passwords don't match");
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
       setLoading(false);
       return;
     }
@@ -36,34 +111,71 @@ export const RegisterPage: React.FC = () => {
       return;
     }
 
+    if (subdomainStatus !== 'available') {
+      setError("Please choose an available subdomain");
+      setLoading(false);
+      return;
+    }
+
     try {
       // 1. Create Firebase Auth User FIRST (so we're authenticated for Firestore writes)
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Create Tenant in Firestore (now user is authenticated)
-      const tenantData = await createTenant({
+      // 2. Create Tenant with defaults (SLAs, etc.)
+      const tenantData = await createTenantWithDefaults({
         name: companyName,
+        subdomain: subdomain,
         primary_color: '#9213ec',
         secondary_color: '#7a10c4',
-        settings: {}
       });
 
-      // 3. Create User Profile in Firestore
-      await setDoc(doc(db, 'users', user.uid), {
+      // 3. Create User Profile as company_admin
+      await createUserProfile(user.uid, {
         tenant_id: tenantData.id,
         full_name: fullName,
         email: email,
         role_id: 'company_admin',
-        phone: phone || null,
-        created_at: new Date().toISOString()
+        phone: phone || undefined,
+        is_active: true,
       });
 
+      // 4. Redirect to dashboard
+      // In production, this would redirect to the new subdomain
       navigate('/dashboard');
     } catch (err: any) {
+      console.error('Registration error:', err);
       setError(err.message || 'Failed to register');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getSubdomainIcon = () => {
+    switch (subdomainStatus) {
+      case 'checking':
+        return <Loader2 className="h-5 w-5 animate-spin text-gray-400" />;
+      case 'available':
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'taken':
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      case 'invalid':
+        return <AlertCircle className="h-5 w-5 text-amber-500" />;
+      default:
+        return <Globe className="h-5 w-5 text-gray-400" />;
+    }
+  };
+
+  const getSubdomainMessage = () => {
+    switch (subdomainStatus) {
+      case 'available':
+        return <span className="text-green-600">This subdomain is available!</span>;
+      case 'taken':
+        return <span className="text-red-600">This subdomain is already taken</span>;
+      case 'invalid':
+        return <span className="text-amber-600">Use only lowercase letters, numbers, and hyphens (3-63 chars)</span>;
+      default:
+        return null;
     }
   };
 
@@ -125,19 +237,19 @@ export const RegisterPage: React.FC = () => {
             </div>
             <div>
               <h2 className="text-3xl font-bold leading-9 tracking-tight text-slate-900 dark:text-white">
-                Register Organization
+                Register Your Organization
               </h2>
               <p className="mt-2 text-base leading-6 text-slate-500 dark:text-slate-400">
-                Create a premium tenant account to begin.
+                Create your IT helpdesk in minutes. Get your own branded portal.
               </p>
             </div>
           </div>
 
           {/* Form */}
           <div>
-            <form onSubmit={handleRegister} className="space-y-6">
+            <form onSubmit={handleRegister} className="space-y-5">
               {/* Company Name */}
-              <div className="group">
+              <div>
                 <label htmlFor="company_name" className="block text-sm font-semibold leading-6 text-slate-700 dark:text-slate-300 ml-1">
                   Company Name
                 </label>
@@ -153,6 +265,36 @@ export const RegisterPage: React.FC = () => {
                     placeholder="e.g. Acme Industries"
                     className="block w-full rounded-xl border-0 py-3.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-white/10 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-primary dark:bg-white/5 dark:text-white sm:text-sm sm:leading-6 pl-4 transition-all duration-200 ease-in-out hover:ring-slate-300 dark:hover:ring-white/20 bg-slate-50/30"
                   />
+                </div>
+              </div>
+
+              {/* Subdomain */}
+              <div>
+                <label htmlFor="subdomain" className="block text-sm font-semibold leading-6 text-slate-700 dark:text-slate-300 ml-1">
+                  Your Helpdesk URL
+                </label>
+                <div className="mt-2 relative">
+                  <div className="flex rounded-xl shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-white/10 focus-within:ring-2 focus-within:ring-primary bg-slate-50/30 dark:bg-white/5">
+                    <input
+                      id="subdomain"
+                      name="subdomain"
+                      type="text"
+                      required
+                      value={subdomain}
+                      onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      placeholder="yourcompany"
+                      className="block w-full min-w-0 flex-1 rounded-l-xl border-0 bg-transparent py-3.5 pl-4 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-0 sm:text-sm sm:leading-6"
+                    />
+                    <span className="flex select-none items-center pr-4 text-slate-500 sm:text-sm">
+                      .helpdesk.com
+                    </span>
+                    <span className="flex items-center pr-3">
+                      {getSubdomainIcon()}
+                    </span>
+                  </div>
+                  {getSubdomainMessage() && (
+                    <p className="mt-2 text-sm ml-1">{getSubdomainMessage()}</p>
+                  )}
                 </div>
               </div>
 
@@ -202,7 +344,7 @@ export const RegisterPage: React.FC = () => {
               {/* Contact Phone */}
               <div>
                 <label htmlFor="phone" className="block text-sm font-semibold leading-6 text-slate-700 dark:text-slate-300 ml-1">
-                  Contact Phone
+                  Contact Phone <span className="text-slate-400 font-normal">(optional)</span>
                 </label>
                 <div className="mt-2 relative">
                   <input
@@ -219,7 +361,7 @@ export const RegisterPage: React.FC = () => {
               </div>
 
               {/* Password Grid */}
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
                   <label htmlFor="password" className="block text-sm font-semibold leading-6 text-slate-700 dark:text-slate-300 ml-1">
                     Password
@@ -296,20 +438,20 @@ export const RegisterPage: React.FC = () => {
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || subdomainStatus !== 'available'}
                   className="group relative flex w-full justify-center rounded-xl bg-gradient-to-r from-primary to-secondary px-3 py-3.5 text-sm font-bold leading-6 text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:from-primary-dark hover:to-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                      Creating Account...
+                      Creating Organization...
                     </>
                   ) : (
                     <>
                       <span className="absolute inset-y-0 left-0 flex items-center pl-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <ArrowRight className="h-5 w-5 text-white/90" />
                       </span>
-                      Create Tenant Account
+                      Create Organization
                     </>
                   )}
                 </button>

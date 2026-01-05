@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { DashboardLayout } from './components/DashboardLayout';
 import { TicketList } from './pages/TicketList';
 import { TicketDetails } from './pages/TicketDetails';
@@ -26,6 +27,7 @@ export const App: React.FC = () => {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/accept-invite/:token" element={<AcceptInvitePage />} />
 
             {/* Dashboard Routes */}
             <Route path="/dashboard" element={

@@ -286,7 +286,7 @@ export const RegisterPage: React.FC = () => {
                       className="block w-full min-w-0 flex-1 rounded-l-xl border-0 bg-transparent py-3.5 pl-4 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-0 sm:text-sm sm:leading-6"
                     />
                     <span className="flex select-none items-center pr-4 text-slate-500 sm:text-sm">
-                      .helpdesk.com
+                      .ithelpdesk.vercel.app
                     </span>
                     <span className="flex items-center pr-3">
                       {getSubdomainIcon()}

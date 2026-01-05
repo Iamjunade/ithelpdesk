@@ -25,9 +25,9 @@ let cacheKey: string | null = null;
 const PLATFORM_DOMAINS = [
     'localhost',
     '127.0.0.1',
-    'helpdesk.com',        // Main platform domain
-    'helpdesk.vercel.app', // Vercel deployment
+    'ithelpdesk.vercel.app',  // Main production domain
     'helpdesk-5fe0c.web.app', // Firebase hosting
+    'helpdesk-5fe0c.firebaseapp.com', // Firebase hosting alt
 ];
 
 /**

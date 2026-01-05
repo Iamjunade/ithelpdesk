@@ -8,6 +8,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { DashboardLayout } from './components/DashboardLayout';
+import { AdminDashboard } from './pages/AdminDashboard';
 import { TicketList } from './pages/TicketList';
 import { TicketDetails } from './pages/TicketDetails';
 import { BrandingPage } from './pages/BrandingPage';
@@ -35,7 +36,7 @@ export const App: React.FC = () => {
                 <DashboardLayout />
               </ProtectedRoute>
             }>
-              <Route index element={<Navigate to="/dashboard/tickets" replace />} />
+              <Route index element={<AdminDashboard />} />
               <Route path="tickets" element={<TicketList />} />
               <Route path="tickets/:id" element={<TicketDetails />} />
               <Route path="kb" element={<KbPage />} />

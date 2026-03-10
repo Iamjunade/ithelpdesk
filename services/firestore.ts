@@ -37,8 +37,12 @@ export interface FirestoreProfile extends Omit<Profile, 'id' | 'created_at'> {
 }
 
 // Helper to convert timestamp
-const timestampToISO = (timestamp?: Timestamp): string => {
-    return timestamp?.toDate().toISOString() || new Date().toISOString();
+const timestampToISO = (timestamp?: any): string => {
+    if (!timestamp) return new Date().toISOString();
+    if (typeof timestamp.toDate === 'function') return timestamp.toDate().toISOString();
+    if (timestamp instanceof Date) return timestamp.toISOString();
+    if (typeof timestamp === 'string') return timestamp;
+    return new Date().toISOString();
 };
 
 // ============================================

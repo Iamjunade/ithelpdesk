@@ -77,9 +77,6 @@ export const createTenantWithDefaults = async (
     const tenantData: Omit<Tenant, 'id'> = {
         name: input.name,
         subdomain: input.subdomain.toLowerCase(),
-        custom_domain: input.custom_domain?.toLowerCase(),
-        website_url: input.website_url,
-        logo_url: input.logo_url,
         primary_color: input.primary_color || '#9213ec',
         secondary_color: input.secondary_color || '#7a10c4',
         timezone: 'UTC',
@@ -88,6 +85,17 @@ export const createTenantWithDefaults = async (
         is_active: true,
         created_at: new Date().toISOString(),
     };
+
+    // Add optional fields only if they have defined values
+    if (input.custom_domain) {
+        tenantData.custom_domain = input.custom_domain.toLowerCase();
+    }
+    if (input.website_url) {
+        tenantData.website_url = input.website_url;
+    }
+    if (input.logo_url) {
+        tenantData.logo_url = input.logo_url;
+    }
 
     batch.set(tenantRef, {
         ...tenantData,
@@ -115,7 +123,7 @@ export const createTenantWithDefaults = async (
     return {
         id: tenantId,
         ...tenantData,
-    };
+    } as Tenant;
 };
 
 /**
